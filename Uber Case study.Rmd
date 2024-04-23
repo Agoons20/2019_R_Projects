@@ -1,0 +1,504 @@
+---
+title: "Uber Case Study"
+author: "Duchoma Agoons"
+date: "02/06/2020"
+output: html_document
+---
+
+
+### General culture required: Weather and the different parameters used to measure it. 
+
+## This case study talks about Uber pickups in the state of New York for a period of 6 months. Associated variables 
+## are given which in our opinion describe what affects those pickups. 
+## Dependent variable = pickups 
+
+```{r setup, include=FALSE}
+getwd()
+
+# import dataset
+Uber=read.csv("Uber Dataset.csv")
+attach(Uber)
+
+head(Uber)
+tail(Uber)
+dim(Uber)
+names(Uber)
+```
+
+## Our dataset seems to have been well imported. Now, we proceed with some exploratory data analysis to see what the
+## data tells us about Uber pickups in the state of New York. Data collected is from 2015-01-01 to 2015-06-30. 
+
+# EDA  
+```{r}
+
+library(DataExplorer) 
+
+
+# Check the structure of the dataset
+str(Uber)
+plot_str(Uber)
+
+## Our dataset contains 13 variables, 3 categorical and 10 numeric variables
+
+# check missing data -  there are many boroughs which are missing from the data. 10.46% of boroughs that is, 3000 
+# missing enteries which is quite significant. We need to take care of this. 
+anyNA(Uber)
+plot_missing(Uber) 
+
+
+# High levelvisual of data
+plot_intro(Uber)
+
+summary(Uber)
+library(Hmisc)
+describe(Uber)
+
+# High level visuals 
+plot_bar(Uber)
+
+## 
+
+# Histograms - will be looked along sideboxplots 
+plot_histogram(Uber)
+
+# Correlation between Manhatan and pickups 
+# Correlation between dewp and temp 
+plot_correlation(Uber)
+
+plot(borough,pickups)
+plot(dewp,temp)
+```
+### High level overview of data summary
+
+## The wind speed varies from borough to borough. Some boroughs get very low wind speed and others get very high. 
+
+## Road visibility by drivers ranges from 0 to 10 miles across boroughs
+
+## The temperature across boroughs ranges from 2 to 89 degrees F across boroughs. 
+
+## Dew point across boroughs ranges from -16 to 73 degrees F across boroughs.The higher the dew point rises, the greater the 
+# amount of moisture in the air. This directly affects how "comfortable" it will feel outside.
+
+## Sea level pressure ranges from  991.4 to 1043.4 across boroughs. low-pressure system moves into an area, it usually leads to cloudiness,
+# wind, and precipitation. High-pressure systems usually lead to fair, calm weather. 
+
+## Precipitation is rain, snow, sleet, or hail — any kind of weather condition where something's falling from the sky. In this dataset, it
+# 3 variables for precipitation are measured, precipitation for 1h, 6h and 24h and we see how precipitation affects pickups across boroughs.
+#  the forms of water particles, whether liquid or solid, that fall from the atmosphere (eg, rain, hail, snow or sleet). 
+
+## Snow depth in inches has a range of 19 inches but differ across boroughs. 
+
+## Within this 6 months period (180 days), 3.9% of the days were public holidays and 96.1% of the days were non public holidays. 
+
+## There are significant amounts of missing boroughs from our data which need to taken care of. 
+
+## There are observations which are very different from all other variables, otherwise known as outliers which need to taken care of.
+
+## The variable Pickup_dt needs to be dealt with separately. We need to break it into its different components - Month, day, weekday and 
+# these different components can show us what the state of pickups are within months, days of the month and weekdays. 
+
+
+## High level summary of data
+```{r}
+
+# summary - data contains too many outliers  and this visual is not informative.
+plot_boxplot(Uber,by="pickup_dt")
+
+## Manhattan gets the most number of pickups followed by Broklyn and then Queens. On a high level, the weather factors affecting pickups
+## seems to follow the same pattern
+plot_boxplot(Uber,by="borough") 
+
+# **************************************************************************************************************************************************************
+plot_boxplot(Uber,by="pickups")
+
+## Observations
+## Pickups  increase as temperatures increase, implies weather gets better. So, when weather is not favourable, people order less.
+## We see almost a similar trend with road visibility. Dew point seems to favor pickups, the more the dew point, the more the pickups.
+## Positive correlation between pickups and sea level pressure (the higher the pressure, the better the weather)
+## The higher the wind speed, the more the pickups. Thus, wind speed doesn't seem to affect pickups. 
+# **************************************************************************************************************************************************************
+
+## The lower the average wind speed, the higher the pickups 
+plot_boxplot(Uber,by="spd")
+
+## Nothing much to say
+plot_boxplot(Uber,by="vsb")
+
+## Nothing much to say on how it relates to pickups 
+plot_boxplot(Uber,by="temp")
+
+## Nothing much to say
+plot_boxplot(Uber,by="dewp")
+
+## Nothing much to say
+plot_boxplot(Uber,by="slp")
+
+## Nothing much to say
+plot_boxplot(Uber,by="pcp01")
+plot_boxplot(Uber,by="pcp06")
+plot_boxplot(Uber,by="pcp24")
+
+## The lower the median snow inches in a borough, the higher the number of pickups
+plot_boxplot(Uber,by="sd")
+```
+## Observations: 
+# - Manhattan gets the most number of pickups followed by Broklyn and then Queens. 
+
+## - Pickups  increase as temperatures increase, implies weather gets better. So, when weather is not favourable, people order less.
+## - We see almost a similar trend with road visibility. Dew point seems to favor pickups, the more the dew point, the more the pickups.
+## - Positive correlation between pickups and sea level pressure (the higher the pressure, the better the weather)
+## - The higher the wind speed, the more the pickups. Thus, wind speed doesn't seem to affect pickups negatively. 
+## - No clear trend with sea level pressure and pickups. 
+## - The lower the median snow inches in a borough, the higher the number of pickups
+
+
+## How to handle NA's 
+```{r}
+## This command sums the total number of NA's in any variables in our dataset
+sapply(Uber, function(x) sum(is.na(x)))
+
+
+# This code takes all the NA's and put them in a separate column in our borough variable
+Uber$borough = as.factor(replace(as.character(Uber$borough), is.na(Uber$borough),"Unknown B"))
+levels(borough)
+
+## This code helps to confirm that the NA's column called "unknown" were successfully added as a 7th borough
+table(Uber$borough) 
+
+## This shows us graphically what our borough variable looks like after adding an unknown column to it
+plot(aggregate(pickups~borough,data = Uber,sum),type="p")
+plot(borough,pickups)
+
+## See  https://www.statmethods.net/graphs/images/lines0.png for graph types other than "p" 
+
+```
+## Observations
+## All the missing labels of boroughs were grouped and put in particular category. They weren't deleted because they were
+## significant. Deleting them meaning deleting observations which in turn might affect out analysis negatively. 
+
+
+# How to split the Date variable
+```{r}
+require(pacman)
+library(lubridate)
+p_load(lubridate)
+p_load(dplyr)
+
+# Let us break date into hour, day, month
+Uber$start_date = strptime(Uber$pickup_dt,'%Y-%m-%d %H:%M')
+
+# We extract month, day, hour and week day from the newly created date so as to draw more insights at
+# a granular level
+Uber$start_month = month(Uber$start_date)
+Uber$start_day = day(Uber$start_date)
+Uber$start_hour = hour(Uber$start_date)
+Uber$wday = weekdays(Uber$start_date)
+Uber = Uber[,-14]
+attach(Uber)
+
+plot_boxplot(Uber,by="start_month")
+plot_boxplot(Uber,by="wday")
+```
+## Observation: 
+## - More pickups are experienced on weekends 
+
+## Observation: 
+## - 4 new variables have been created: "Start_month", "Start_day", "Start_hour", and "Wday"
+
+
+## Univariate analysis  for categorical variables and the dependent variable 
+```{r}
+par(mfrow = c(1,1)); 
+text(x = barplot(table(borough),main = "Borough",ylab = "Frequency"), y = 0,  table(borough), cex=1,pos=3); 
+text(x = barplot(table(hday),main = "Holiday",ylab = "Frequency"), y = 0,  table(hday), cex=1,pos=3)
+
+```
+# Observation: All boroughs rate of pickups is the same with the exception of unspecified boroughs which vary and all these pickups
+#       happen 96.1% of the time on non-pyblic holidays
+
+
+## Univariate analysis for numerical variables and the dependent variable. We plot histograms and boxplots
+```{r}
+par(mfrow = c(2,2));
+text(x= barplot(table(pickups),main = "Pickups",ylab = "Frequency"), y = 0, table(pickups), cex=1,pos=3);
+boxplot(pickups, horizontal = TRUE, main = " pickups")
+
+text(x= barplot(table(spd),main = "Wind speed in miles per hour",ylab = "Frequency"), y = 0, table(spd), cex=1,pos=3);
+boxplot(spd, horizontal = TRUE, main = "Wind speed in miles per hour")
+
+
+par(mfrow = c(2,2));
+text(x= barplot(table(vsb),main = " Visibility in Miles to nearest tenth",ylab = "Frequency"), y = 0, table(vsb), cex=1,pos=3);
+boxplot(vsb, horizontal = TRUE, main = " Visibility in Miles to nearest tenth")
+
+text(x= barplot(table(temp),main = "Temperature in Fahrenheit",ylab = "Frequency"), y = 0, table(temp), cex=1,pos=3);
+boxplot(vsb, horizontal = TRUE, main = "Temperature in Fahrenheit");
+
+
+par(mfrow = c(2,2));
+text(x= barplot(table(dewp) ,main = "Dew point in Fahrenheit",ylab = "Frequency"), y = 0, table(dewp), cex=1,pos=3);
+boxplot(dewp, horizontal = TRUE, main = "Dew point in Fahrenheit");
+
+
+text(x=barplot(table(slp),main = "Sea level pressure",ylab = "Frequency"), y = 0, table(slp), cex=1,pos=3);
+boxplot(slp, horizontal = TRUE, main = "Sea level pressure");
+
+
+par(mfrow = c(2,2));
+text(x= barplot(table(pcp01),main = "One-hour liquid precipitation",ylab = "Frequency"), y = 0, table(pcp01), cex=1,pos=3);
+boxplot(pcp01, horizontal = TRUE, main = "1-hour liquid precipitation");
+
+text(x= barplot(table(pcp06),main = "6-hour liquid precipitation",ylab = "Frequency"), y = 0, table(pcp06), cex=1,pos=3);
+boxplot(pcp06, horizontal = TRUE, main = "6-hour liquid precipitation");
+
+
+par(mfrow = c(1,2));
+text(x= barplot(table(pcp24),main = "24-hour liquid precipitation",ylab = "Frequency"), y = 0, table(pcp24), cex=1,pos=3);
+boxplot(pcp24, horizontal = TRUE, main = "24-hour liquid precipitation")
+
+
+par(mfrow = c(2,2));
+text(x= barplot(table(start_month),main = "Start Month for Pickups",ylab = "Frequency"), y = 0, table(start_month), cex=1,pos=3);
+boxplot(start_month, horizontal = TRUE, main = " Start Month for Pickups ");
+
+text(x= barplot(table(start_day),main = "Start Date for Pickups",ylab = "Frequency"), y = 0, table(start_day), cex=1,pos=3);
+boxplot(start_day, horizontal = TRUE, main = " Start Date for Pickups ");
+
+
+par(mfrow = c(2,2));
+text(x= barplot(table(start_hour),main = "Start Hour for Pickups",ylab = "Frequency"), y = 0, table(start_hour), cex=1,pos=3);
+boxplot(start_hour, horizontal = TRUE, main = " Start Hour for Pickups ");
+
+text(x= barplot(table(wday),main = " Weekdays ",ylab = "Frequency"), y = 0, table(wday), cex=1,pos=3);
+
+```
+
+## Observations: 
+## - 
+
+
+```{r}
+par(mfrow = c(2,2));
+hist(pickups, main = "Pickups", xlab = "", col = "dark grey");
+boxplot(pickups, horizontal = TRUE, main = "pickups");
+
+
+hist(spd, main = "Wind speed in miles/hour", xlab = "", col = "dark grey");
+boxplot(spd, horizontal = TRUE, main = " Wind speed in miles/hour");
+text(fivenum(spd), labels =fivenum(spd), y=1.25);
+rug(spd);
+
+
+par(mfrow = c(2,2));
+hist(vsb, main = " Visibility in Miles to nearest tenth", xlab = "",  col = "dark grey");
+boxplot(vsb, horizontal = TRUE, main = " Visibility in Miles to nearest tenth");
+text(fivenum(vsb), labels =fivenum(spd), y=1.25);
+rug(spd);
+
+hist(temp, main = " Temperature in Fahrenheit", xlab = "", col = "dark grey");
+boxplot(temp, horizontal = TRUE, main = " Temperature in Fahrenheit");
+text(fivenum(spd), labels =fivenum(temp), y=1.25);
+rug(temp)
+
+
+par(mfrow = c(2,2));
+hist(temp, main = "Temperature in Fahrenheit", xlab = "", col = "dark grey");
+boxplot(temp, horizontal = TRUE, main = " Temperature in Fahrenheit ");
+text(fivenum(spd), labels =fivenum(spd), y=1.25);
+rug(temp);
+
+
+hist(dewp, main = " Dew point in Fahrenheit", xlab = "",  col = "dark grey");
+boxplot(dewp, horizontal = TRUE, main = " Dew point in Fahrenheit");
+text(fivenum(vsb), labels =fivenum(spd), y=1.25);
+rug(dewp)
+
+
+par(mfrow = c(2,2));
+hist(slp, main = " Sea level pressure", xlab = "", col = "dark grey");
+boxplot(slp, horizontal = TRUE, main = " Temperature in Fahrenheit ");
+text(fivenum(slp), labels =fivenum(spd), y=1.25);
+rug(slp);
+
+hist(pcp01, main = " 1-hour liquid precipitation", xlab = "",  col = "dark grey");
+boxplot(pcp01, horizontal = TRUE, main = " 1-hour liquid precipitation ");
+text(fivenum(pcp01), labels =fivenum(spd), y=1.25);
+rug(pcp01);
+
+
+par(mfrow = c(2,2));
+hist(pcp06, main = " 6-hour liquid precipitation", xlab = "",  col = "dark grey");
+boxplot(pcp06, horizontal = TRUE, main = " 6-hour liquid precipitation ");
+text(fivenum(pcp06), labels =fivenum(spd), y=1.25);
+rug(pcp06);
+
+hist(pcp24, main = " 24-hour liquid precipitation", xlab = "",  col = "dark grey");
+boxplot(pcp24, horizontal = TRUE, main = " 24-hour liquid precipitation ");
+text(fivenum(pcp06), labels =fivenum(spd), y=1.25);
+rug(pcp24);
+
+
+par(mfrow = c(2,2));
+hist(sd, main = " Snow depth in inches", xlab = "",  col = "dark grey");
+boxplot(sd, horizontal = TRUE, main = " Snow depth in inches");
+text(fivenum(sd), labels =fivenum(spd), y=1.25);
+rug(sd)
+
+
+# ****************************** Alternative Univariate Analysis **********************************
+
+hist(Uber$vsb, main= "Visibility")
+# Almost clear weather 
+
+hist(Uber$temp, main="Temperature")
+boxplot(temp,horizontal = TRUE)
+# Two peaks culd be seen around 35 and second around 60 in the histogram
+# This histogram is bi-modal because it is like 2 hist joint together
+
+## The density plot is gotten by drawing the tops of a histogram. PLOT DENSITY
+
+plot(density(Uber$dewp), main="Dew point variations")
+# Distribution looks similar to that of temperature (bi-modal)
+# Rememberr, all of these steps are just to look at how the data is behaving, information hunt!
+
+plot(density(Uber$slp), main="Sea level pressure")
+# Approximately normaldistribution
+# Sea level, dew point(humidity), speed all would be related to temperatures
+
+plot(density(Uber$sd), main="Snow depth")
+# No snow for majority of times since the other peaks are way too low and pick is at point 0
+# Thus, we think snow depth doesn't affect driving and peakups
+# If the number of snow depth was high significantly, it could affect peakups
+
+# ***************************************** END *************************************************************
+```
+
+# Bivariate Analysis  - These plots are not very informative
+```{r}
+
+# We plot numeric vs categorical variables
+boxplot(pickups~borough,horizontal=T,main="Pickups by Boroughs")
+levels(borough)
+```
+
+
+## Bivariate - Analysis COntinues 
+```{r}
+## Check how many holidays in each of the six months in which the data was collected
+unique(Uber[which(Uber$hday=="Y"),c("start_day","start_month")])
+
+## Check the number of trips in each month and whether or not there is a holiday in that month 
+table(hday,start_month)
+
+plot(aggregate(pickups~hday,data=Uber, mean), type="b")
+plot(aggregate(pickups~start_month,data=Uber,mean),type="b")
+
+
+## This tells us which boroughs get the max number of pickups , in order of preference
+## Here, we print the total number of pickups for all the 6 boroughs in NY City
+
+library(ggplot2)
+ggplot(Uber,aes(pickups))+
+  geom_histogram()+
+  facet_wrap(~borough,ncol=3)
+
+## To be very precise using numbers, which boroughs get more pickups, we use the following code 
+library(dplyr)
+Uber%>%group_by(borough)%>%summarise(Total.Pickups=sum(pickups))%>%arrange(desc(Total.Pickups))
+
+
+# Check for outliers in variables
+boxplot(Uber[,c(4:7)],horizontal = TRUE)
+boxplot(Uber[,c(9:12)],horizontal = TRUE)
+
+
+# *******************************  None of weather variables seem to affect pickups ******************************
+
+# Pickup vs wind speed
+plot(spd, pickups, xlab= "speed", ylab="pickup", main ="pickup vs speed")
+abline(lm(pickups~spd),col=c("Red"))
+
+# Pick up vs vsb 
+plot(vsb, pickups, xlab= "visibility", ylab="pickup", main ="pickup vs visibility")
+abline(lm(pickups~vsb),col=c("Red"))
+
+## Precipitation vs pickups
+plot(pcp01, pickups, xlab= "pcp01", ylab="pickup", main ="pcp01 vs pickups")
+abline(lm(pickups~pcp01),col=c("Red"))
+
+### Temperature vs Pickups
+plot(temp, pickups, xlab= "temp", ylab="pickup", main ="temperature vs pickup")
+abline(lm(pickups~temp),col=c("Red"))
+
+
+## Check the other weather factors
+
+# *********************************************** END *********************************************************************
+
+
+# ******************* Now we see if time based variables will affect the pickups or not ***************************
+
+### Check Pickups in Start_month to see the behavior
+plot(aggregate(pickups~start_month,data=Uber, sum), type="b")
+
+## Observation: we see an increase in monthly Pickups. 
+
+
+## lets see daily bookings of taxi in a month
+plot(aggregate(pickups~start_day,data=Uber, sum), type="b", main ="Sum of bookings for each day")
+
+## Observation: Some insights are revealed by the peaks of the graph, pickups were high at those places. 
+
+
+## Here we exclude the month of february for Pickups and see what graph gives us
+Uber %>% 
+  filter(.,start_month !=2) %>% 
+  ggplot(aes(x=start_day, y=pickups))+geom_bar(stat='identity')
+
+
+## Pickup on an hourly basis
+plot(aggregate(pickups~start_hour,data=Uber, sum), type="b")
+## Pickups are very high around the 19th-20th hour and then decrease steadily till 5am and we know why. 
+
+
+## Pickups based on days of the week
+ggplot(aes(x = reorder(wday, pickups), y = pickups), data = Uber) +
+  geom_bar(aes(fill=pickups), width=0.5, stat = "identity") + coord_flip()
+
+### Saturday has the highest Pickups in a week followed by Friday and so on..
+
+
+class(wday)
+### Get aggregate pickups for all boroughs of NY City
+Uber$wday = as.factor(Uber$wday)
+plot(aggregate(pickups~wday,data=Uber, sum), type="b")
+
+## low bookings on monday which rises till saturday and then drops off slightly on sunday
+
+
+```
+## Observation: 
+# - There are 2 holidays in January, February, and May. There is 1 holiday in June and no holiday in March and April .
+# - There are no holidays in the month's of March and April and hence no trips on those days. The highest number of trips
+# - are recorded in March.
+
+# Multivariate Analysis  (NOT NEEDED. It yields redundant information)
+```{r}
+### We check the bookings per hour for the different boroughs
+# geom_jitter gives us the color of the plot
+# Unknown found on the bottom, wero, because it is made up of NA's
+ggplot(Uber, aes(start_hour, pickups)) +
+geom_jitter(alpha = 0.3, aes(colour = borough)) 
+
+
+## In this case, we have a pattern while immediately above, no!
+# geom_smooth gives us the pattern in the diagram
+ggplot(Uber, aes(start_hour, pickups)) +
+  geom_jitter(alpha = 0.3, aes(colour = borough)) +
+geom_smooth(aes(color = borough))
+
+ggplot(Uber, aes(start_hour, borough)) +
+  geom_jitter( alpha = 0.4, aes(color = pcp01 > 0)) +
+  geom_smooth(aes(color = pcp01 > 0))
+```
+
