@@ -1,0 +1,321 @@
+-
+title: "Predict the type of transport "
+author: "Duchoma Agoons"
+date: "09/10/2019"
+output: html_document
+---
+
+#Import data
+```{r setup, include=FALSE}
+rm(list=ls())
+set.seed(248)#this is for consistency in testing
+
+Carsdata=read.csv("Cars.csv", header=T)
+attach(Carsdata)
+```
+
+
+```{r}
+library(DataExplorer)
+
+
+anyNA(Carsdata) # Our data contains missing values. We need to take care of it
+plot_missing(Carsdata) # This diagram tells us that the missing values are found in the MBA variable, specifically, the data is missing row wise.
+plot_intro(Carsdata) # our data contains both discrete and continuous datatypes with 55.6% being continuous and 44.4% being discrete
+
+names(Carsdata)
+head(Carsdata)
+
+str(Carsdata) # Our data contains 418 observations with 9 variables
+plot_str(Carsdata)
+
+
+# Does our dataset contain Duplicated values?
+which(duplicated(Carsdata)) #No duplicate data points
+
+summary(Carsdata)
+
+# Carsdata$Gender.fct=as.factor(Carsdata$Gender)
+# Carsdata$Transport.fct=as.factor(Carsdata$Transport)
+# Carsdata$Work.Exp.fct=as.factor(Carsdata$Work.Exp)
+# Carsdata$license.fct=as.factor(Carsdata$license)
+# Carsdata$MBA.fct=as.factor(Carsdata$MBA)
+# Carsdata$Engineer.fct=as.factor(Carsdata$Engineer) 
+# Carsdata$Transport.fct=as.factor(Carsdata$Transport) 
+
+# The Age of employees is the range 18 to 43 years with the median Age of 27. 
+
+#  There are more male employees than females. Male employees represent 70.05% and females represent 28.95%
+
+# Public transport is the most used means of transportation followed by 2Wheelers, which could be bikes or motocycles and the less used transportation
+# means are cars. 
+
+# Salary's distribition is skewed to the left. 
+hist(Salary,col="Pink")
+boxplot(Salary,horizontal = T)
+
+# Approximately 80% of employees don't have drivers licence while 20% of employees have drivers license. 
+
+# The maximum distance travelled by employees to work is 23.40km. 
+
+# There are more experienced employees in this company with some of them having dual degrees (MBA and Engineers) since total of MBA degree holders and Engineers is more than 418. 
+
+
+
+# The variables "Engineer", "MBA", and "Licence" are binary variables. We will convert them to datatype factor so as to get more meaning out of them.
+# Being an Engineer, having an MBA or a licence (driver's licence) is important information we need to understand what might influence employees to take or use a partiular mode of transportation or we can get some insights or patterns from such employees. This leads us to convert these 
+# variables to "factors" 
+
+Carsdata$Engineer=as.factor(Carsdata$Engineer)
+Carsdata$MBA=as.factor(Carsdata$MBA)
+Carsdata$license=as.factor(Carsdata$license)
+Carsdata$Transport=as.factor(Carsdata$Transport)
+summary(Carsdata)
+
+
+# 75% of employees are Engineers and 25% are not. At the same time, 26% of employees have MBA's
+# The MBA variable contains an NA. 
+```
+
+#Imputation using KNN
+```{r}
+# Find where the missing data is in the dataset and then clean the data
+Carsdata[!complete.cases(Carsdata),]
+library(DMwR)
+Carsdata=knnImputation(Carsdata,k=5)
+summary(Carsdata)
+```
+Assignment: Make cleaning data techniques, esp NAs work. KNN and Mice technique not working so far tchuips! 
+
+#Elementary data analysis ~ Given the problem at hand, you need to do various permutations and combinations of the various variables to get a description of the data. 
+1- Dependent variables Vs Predictors 
+2- Permutations and combinations between predictors 
+
+The variables: Engineer, MBA, Work Experience, Gender, Age and licence are good for profiling an employee. 
+```{r}
+## AGE ANALYSIS OF THE OTHER VARIABLES
+
+# *************************************************************************************************************************
+# Compare Age groups of Engineers and MBA holders 
+boxplot(Age~Engineer, main="Age Vs Engineer")
+boxplot(Age~MBA,main="Age Vs MBA")
+
+# Output: There is not much of a difference between the Age groups of Engineers and MBA holders
+# *************************************************************************************************************************
+
+# *************************************************************************************************************************
+# Compare Age of Male and Females
+### There are more older men than women in this organizaton 
+boxplot(Age~Gender,main="Age Vs Gender") 
+
+
+### As expected, the older the employees, the higher their work experience
+cor(Age,Work.Exp)
+# *************************************************************************************************************************
+
+# *************************************************************************************************************************
+### As expected, the older the employees, the more they turn to shuttle by car. 
+boxplot(Age~Transport,main="Age Vs Transport") 
+
+# Output: On a risk level, older people shuttle by car due to less risks of accidents, mid-Age ranged individuals commute by public transport while youngsters communte by 2 wheelers
+
+# *************************************************************************************************************************
+
+# *************************************************************************************************************************
+# WORK EXPERIENCE ANALYSIS
+boxplot(Work.Exp~Gender,main="Work Experience Vs Gender") # Mean work experience for Male and Females are the same. 5 years. No considerable difference.
+
+
+boxplot(Work.Exp~Engineer,main="Work Experience Vs Engineer") # Engineers have a higher work experience than non-engineers
+
+
+boxplot(Work.Exp~MBA,main="Work Experience Vs MBA") # there is no appreciable difference between MBA holder's work experience and non-MBA holdres work experience. 
+
+
+boxplot(Work.Exp~license,main="Work Experience Vs License") ### Employees with higher working experience have drivers' licence. 
+
+
+boxplot(Work.Exp~Transport,main="Work Experience Vs Transport") ### The higher the working experience, the more likely an employee with shuttle by car to work. 
+
+cor(Work.Exp,Age) # Work Experience is related to Transport. Below is a visual to illustrate this
+plot(Work.Exp,Age) #  The older an employee is, the more work experienced s/he is.
+# *************************************************************************************************************************
+
+# *************************************************************************************************************************
+# SALARY ANALYSIS
+# There is not much of a difference between salary of Males and Females, between MBA degree holders and non-MBA degree holders, between non-Engineers
+# and Engineers . Th mean salaries are around 15. Thus, though there may be a slight difference in the number of years of working experience (as shown above) of engineers and non-engineers, employees all have the same mean salary. 
+boxplot(Salary~Gender,main="Salary Vs Gender")
+boxplot(Salary~Engineer,main="Salary Vs Engineer")
+boxplot(Salary~MBA,main="Salary Vs MBA")
+boxplot(Salary~Transport) #### The higher the salary, the more employees tend to shuttle by car
+# *************************************************************************************************************************
+
+# *************************************************************************************************************************
+# DISTANCE ANALYSIS
+boxplot(Distance~Gender,main="Distance Vs Gender") # Both Males and Females cover on average, same distance to commute to work.      
+boxplot(Distance~Engineer,main="Distance Vs Engineer") ### Engineers cover slightly higher distances to work than non-engineers
+boxplot(Distance~MBA,main="Distance Vs MBA") # no appreciable difference in distance covered by MBA degree hoders and non-MBA degree holders
+boxplot(Distance~license,main="Distance Vs Licence") ### Those who have a licence cover on average more distance to get to work than those who don't have a licence.
+boxplot(Distance~Transport,main="Distance Vs Transport") ####  Those who travel long distances from home to work turn to use cars, follwed by 2Wheeler
+# *************************************************************************************************************************
+
+## More Engineers with experience commute by private transportation than non-Engineers and MBA holders
+table(Engineer,Transport)
+table(MBA,Transport)
+
+
+### 34% of licence holders shuttle by car to work and those without license have a tendency to commute by public transportation.
+table(license,Transport)
+
+
+### 36.4% of women prefer commuting to work by private transportation means (2Wheeler and cars) while 63.6% of females commute by public transport.
+### a minimal percentage of womencommute by car. Out of the 25% of men who commute to work by private transportation means, 
+### approximately 10% of men commute by car to work. The majority of men (75%) commute to work by public transport. 
+# More females prefer  to commute by private transportation means than public transport and more Males commute by Car to work. 
+table(Gender,Transport)
+plot(Gender,Transport) 
+
+### There are more experienced  employees in this firm (the distribution of working experience is right skewed)
+hist(Work.Exp,col="Red")
+boxplot(Work.Exp,horizontal=T)
+
+str(Carsdata)
+summary(Transport)
+
+### we would like to build a rule that will help us predict which mode of transportation an employee will use by using the other variables. 
+```
+#More Visuals
+```{r}
+table(Engineer,Transport)
+table(MBA,Transport)
+table(license,Transport) 
+table(Engineer,license)
+table(MBA,license)
+
+### 61.18% of those that have licenses shuttle by private transportation means and 38.82% by public transportation. 
+### The majority of Engineers commute by private transport while the majority of MBA holders commute by public transport. 
+### because Engineers have drivers license and MBA holders don't have as more drivers license as Engineers do.
+```
+
+
+#Check dimensions of our dependent variable
+```{r}
+table(Transport)
+print(prop.table(table(Transport)))
+### 28.23% of employees commute to work by private transportation means, with 19.86% of them commuting by 2Wheelers and 8.23% of them by car. 
+### 71.77% of employees commute to work by public transportation. Our data shows us an imbalance in favor of employees who commute to work by public transport.
+```
+
+DATA PREPARATION
+
+# The most challenging aspect of this problem is to perform Logistic regression on a dependent variable which is not binary. to solve this problem, we will narrow down our predictions to better understand the influence of car usage in our dataset.
+# We create a new column called "CarUsage" which will serve as our new dependent variable and assign the number 1 to all entries where there are cars and 0 to the others. This way, we create a a new dependent variable with 2 levels instead of three like it existed before. This way, we can easily apply the "glm()"
+
+```{r}
+Carsdata$CarUsage=ifelse(Carsdata$Transport=='Car',1,0)
+table(Carsdata$CarUsage)
+attach(Carsdata)
+print(prop.table(table(CarUsage)))
+```
+
+#Convert CarUsage variable to factor
+```{r}
+Carsdata$CarUsage=as.factor(Carsdata$CarUsage)
+summary(Carsdata)
+```
+
+#Split our data into train and test set
+```{r}
+
+library(caTools)
+
+split=sample.split(Carsdata$CarUsage,SplitRatio=0.70)
+
+
+Cars_train=subset(Carsdata, split == TRUE)
+Cars_test=subset(Carsdata, split == FALSE)
+
+#we can check the ratios of the minority class to majority class
+table(Cars_train$CarUsage)
+print(prop.table(table(Cars_train$CarUsage)))
+                 
+table(Cars_test$CarUsage)
+print(prop.table(table(Cars_train$CarUsage)))
+
+#Required to build a Logistic Regression model. There are many ways; we will use the Generalized Linear Model (glm) function. 
+## The glm() yields a Logistic Regression Output. 
+```
+
+#We now delete the transport variable from our train and test dataset since they are already represented by our newly created dependent variable, CarUsage. Take note that the 9th variable is excluded from the formula below and this is how deleting is applied here. 
+```{r}
+Cars_train<-Cars_train[,c(1:8,10)]
+Cars_test<-Cars_test[,c(1:8,10)]
+```
+
+
+#We can now start building our models 
+
+##LOGISTIC REGRESSION
+```{r}
+Logit.Reg.Model=glm(CarUsage~Age+Gender+Engineer+MBA+Salary+Distance, data=Cars_train, family=binomial)
+summary(Logit.Reg.Model)
+
+Logit.Reg.Model$coeff
+# If employees age increases by 1 year, then Car usage is estimated to increase by 0.53 points keeping all other variables contant.
+# The more Engineers with experience we get in the company, Car usage is estimated to increase by a small percent. 
+# Increase in salary too increases the likelihood of employees commuting to work by car.
+# Distance travelled to work by employees is the most significant variable affecting the decision to commute to work by car.
+
+# verify the presence of multicollinearity between the variables of the model 
+library(rms)
+vif(Logit.Reg.Model)
+
+
+# We create a new column in the test data such that we use our built model to predict new data (the test data) and this gives us probabilities
+Cars_test$log.prediction=predict(Logit.Reg.Model,newdata=Cars_test,type="response")
+
+
+# Now we take the table of CarUsage and compare it with our logistic prediction . Threshold value, C = 0.5
+Evaluation=table(Cars_test$CarUsage,Cars_test$log.prediction>0.5)
+Evaluation
+
+### Our model worked correctly using Logidtic regression. We made a 100 percent prediction on the number of people who will use cars
+### This model among all others I tried had the lowest AIC value. Due to collinearity betweens variables, some independent variables were excluded
+### from the model since they reduced the significance of other variables and and increased the AIC value of the model.
+```
+
+
+###NAIVE BAYES
+# It will help to separate those who are most likely to use Car to commute to work and crunches those who don't.  Naive Bayes is applicable
+# because the formula has been made to accomodate both continuous and categorical variables in it.
+```{r}
+library(e1071)
+str(Cars_train)
+naiveBayes(CarUsage~Age+Gender+Engineer+MBA+Salary+Distance, data=Cars_train)
+```
+# It prints a prior probability, which is the percentage of Car usage or no car usage. 
+# It also prints conditional probabilities. It prints the distribution of the independent variables given the CarUsage status.
+
+# i) The conditional probability of Age given No CarUsage is a distribution that has mean  26.54 years and standard deviation 2.91. Similarly, the 
+#   conditional probability of Age given CarUsage is a distribution that has mean 36.00 years and standard deviation 3.24. 
+
+# ii) The mean salary for people to use a car to shuttle to work is 39.64 thousand dollars and the mean salary for those who don't use car to 
+#    commute to work is $13.11 thousand. 
+
+# iii) The mean distance travelled by those who use car to commute to work is 17.19 and he mean distance of those who don't use car is 10.61
+
+#We treat the independent variables are separate due to the naive bayes assumption. 
+
+#NaiveBayes continuation
+```{r}
+NB.Car.Usage=naiveBayes(x=Cars_train[,1:8],y=Cars_train[,9])
+predict.NB=predict(NB.Car.Usage,newdata=Cars_test[,1:8])
+Confusion.Matrix=table(Cars_test[,9],predict.NB)
+
+library(caret)
+
+confusionMatrix(Confusion.Matrix)
+## Our accuracy is 98.41%, Sensitivity is 100% and specificity is 84.62%
+## Our algorithm  correctly predicted the people who will commute by car but misclassified those who will not.
+```
