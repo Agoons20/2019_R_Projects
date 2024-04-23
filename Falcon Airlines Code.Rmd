@@ -1,0 +1,899 @@
+---
+title: "Falcon Airlines"
+author: "Duchoma Agoons"
+date: "22/03/2023"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+#Data Importation
+```{r}
+getwd()
+library(readr)
+Falcon_Data=read.csv("Falcon Customers Data.csv")
+sum(is.na(Falcon_Data)) # our dataset contains 23,888 missing enteries. Customers did not provide answers. 
+```
+
+
+#Exploratory steps and data cleaning
+```{r}
+head(Falcon_Data)
+tail(Falcon_Data)
+names(Falcon_Data) #We can actually look at which columns are numeric and which are categorical. see next code
+colnames(Falcon_Data[,sapply(Falcon_Data,is.numeric)])
+colnames(Falcon_Data[,sapply(Falcon_Data,is.factor)])
+
+
+# Rename Variables
+colnames(Falcon_Data)[12]<-"Departure_or_Arrival_Time_Convenience"
+colnames(Falcon_Data)[8]<-"Departure_Delay_in_Mins"
+colnames(Falcon_Data)[9]<-"Arrival_Delay_in_Mins"
+colnames(Falcon_Data)[15]<-"Inflight_Wifi_Service"
+names(Falcon_Data)
+
+# ************************** ALTERNATIVE CODE TO CLEANING VARIABLE NAMES ************************************
+colnames(Falcon_Data)=make.names(colnames(Falcon_Data))
+?make.names
+
+# Rename levels of variables CustomerType, TypeTravel based on the summary function's output. This code 
+# replaces an empty space space to "Others". It is being done in two steps. 
+summary(Falcon_Data) 
+Falcon_Data$CustomerType[Falcon_Data$CustomerType == ""] <- NA
+Falcon_Data$CustomerType = as.factor(replace(as.character(Falcon_Data$CustomerType), is.na(Falcon_Data$CustomerType),"Others"))
+
+Falcon_Data$TypeTravel[Falcon_Data$TypeTravel == ""] <- NA
+Falcon_Data$ TypeTravel = as.factor(replace(as.character(Falcon_Data$ TypeTravel), is.na(Falcon_Data$ TypeTravel),"Others"))
+
+#### Observation: Variables were cleaned correctly. 
+
+
+
+anyNA(Falcon_Data)
+attach(Falcon_Data)
+
+
+# Overview of data
+str(Falcon_Data)
+library(tidyverse)
+glimpse(Falcon_Data)
+
+library(Hmisc)
+describe(Falcon_Data)
+# Describes data very well. The output from here will be useful in interpreting "plot_histogram(Falcon_Data)" output.
+
+``` 
+
+
+
+# Create bins of Age variable  - Manual splitting using the cut function
+## For this project, we shall not label the age bins for easy visual comprehension. Labelling the age groups
+## may confuse stakeholders. Nevertheless, the definition of the Age groups are as follows:
+## This is an engineering exercise. You need to try splitting the variable into various sizes. Some granular details will be revealed.
+
+### Observation
+# 1) This bins splitting resulted in telling us one more granular detail in comparison to when we let R split the data for us.
+#   Departure_or_Arrival_time_convenience was highly rated by "Kids", which is only but normal. They have virtually no time constraints.
+
+```{r}
+Age.Bins=cut(Age,c(7,12,19,29,49,60,69,85),include.lowest=TRUE) 
+table(Age.Bins) 
+plot(Age.Bins,col="light green") 
+
+# Now, we add the Age.Bins to our Dataset 
+Falcon_Data$Age.Bins=Age.Bins 
+attach(Falcon_Data) 
+
+# Segmentation of Data by Age.Bins 
+library(DataExplorer) 
+
+## We use the "Age.bins" variables to extract more information from the data.
+## Deeper understanding of customer Age groups
+
+table(Age.Bins,Satisfaction) 
+prop.table(table(Age.Bins,Satisfaction)) 
+plot(Age.Bins,Satisfaction,col=c("light green", "light blue")) 
+### Observation:  Plot this using Tableau. 
+
+
+table(Age.Bins,CustomerType)
+prop.table(table(Age.Bins,CustomerType))
+plot(Age.Bins,CustomerType,col=c("light green","light blue","violet"))
+### Observation: 
+
+
+table(Age.Bins,TypeTravel)
+prop.table(table(Age.Bins,TypeTravel))
+plot(Age.Bins,TypeTravel,col=c("light green","light blue","violet"))
+### Observation: 
+
+table(Age.Bins,Class)
+prop.table(table(Age.Bins,Class))
+plot(Age.Bins,Class,col=c("light green","light blue","violet"))
+### Observation: 
+
+
+table(Age.Bins,Gender)
+prop.table(table(Age.Bins,Gender))
+plot(Age.Bins,Gender,col=c("light green","light blue")) # Approximately the same proportion os men and women are in all buckets.
+### Observation:  No significant differentiation. 
+
+plot(Age.Bins,Flight_Distance,col=c("light blue","orange","yellow","green","pink","violet","red"))
+```
+
+## NOTE
+# (i) We need to do line charts
+# (ii) We need to show number of observations in each bucket of our bar graphs. This will shine more light on the percentage
+#    representation we we use to describe our bar diagrams.
+# (iii) Show the percentage of each bars in our bar graph
+
+
+# Bar Charts for Categorical variables
+```{r}
+library(ggplot2)
+library(dplyr)
+
+#******************************************** Customer Type ****************************************************************#
+
+CustomerType_count=Falcon_Data %>% count(CustomerType) # This creates a frequency table for the CustomerType variable.
+
+# This code helps represent the counts on each bucket
+ggplot(CustomerType_count, aes(x= reorder(CustomerType,-n), y=n)) + 
+  geom_bar(stat="identity",fill="light green", color="black") + 
+  geom_text(aes(label=n), vjust=-0.25) + 
+  labs(x="CustomerType", y="Count", title="Customer Type Distribution")
+
+# Represent percentage rather than count on buckets
+## begin by creating a new data frame with percentage equivalents
+Percentage_CustomerType = Falcon_Data %>% 
+  count(CustomerType) %>% 
+          mutate(per = n / sum(n),
+                 per_label = paste0(round(per*100), "%"))
+
+ggplot(Percentage_CustomerType, aes(x = reorder(CustomerType, -per), y = per)) + 
+  geom_bar(stat = "identity", fill = "light green", color = "black") +
+    geom_text(aes(label = per_label), vjust = -0.25) +
+    labs(x = "CustomerType", y = "Count", title = "Customer Type Distribution")+ 
+    scale_y_continuous(labels = scales::percent) +
+    theme_bw()
+#************************************************************************************************************************#
+
+
+#******************************************** Gender  ****************************************************************#
+
+## This code prints the number of observations on the chart bars
+Gender_count=Falcon_Data %>% count(Gender) 
+
+ggplot(Gender_count, aes(x= reorder(Gender,-n), y=n)) + 
+  geom_bar(stat="identity",fill="light green", color="black") + 
+  geom_text(aes(label=n), vjust=-0.25) + 
+  labs(x="Gender", y="Count", title="Gender Distribution")
+
+
+# This code prints the percentage representation of data on the chart bar
+Percentage_Gender = Falcon_Data %>% 
+  count(Gender) %>% 
+          mutate(per = n / sum(n),
+                 per_label = paste0(round(per*100), "%"))
+ 
+ggplot(Percentage_Gender, aes(x = reorder(Gender, -per), y = per)) + 
+  geom_bar(stat = "identity", fill = "light green", color = "black") +
+    geom_text(aes(label = per_label), vjust = -0.25) +
+    labs(x = "Gender", y = "Count", title = "Gender Distribution")+ 
+    scale_y_continuous(labels = scales::percent) +
+    theme_bw()
+#************************************************************************************************************************#
+
+
+##******************************************** Age.Bins ****************************************************************#
+## This code prints the number of observations on the chart bars
+Age.Bins_count=Falcon_Data %>% count(Age.Bins) 
+
+ggplot(Age.Bins_count, aes(x= reorder(Age.Bins,-n), y=n)) + 
+  geom_bar(stat="identity",fill="light green", color="black") + 
+  geom_text(aes(label=n), vjust=-0.25) + 
+  labs(x="Age.Bins", y="Count", title="Age.Bins Distribution")
+
+
+# This code prints the percentage representation of data on the chart bar
+Percentage_Age.Bins = Falcon_Data %>% 
+  count(Age.Bins) %>% 
+          mutate(per = n / sum(n),
+                 per_label = paste0(round(per*100), "%"))
+ 
+ggplot(Percentage_Age.Bins, aes(x = reorder(Age.Bins, -per), y = per)) + 
+  geom_bar(stat = "identity", fill = "light green", color = "black") +
+    geom_text(aes(label = per_label), vjust = -0.25) +
+    labs(x = "Age.Bins", y = "Count", title = "Age.Bins Distribution")+ 
+    scale_y_continuous(labels = scales::percent) +
+    theme_bw()
+#************************************************************************************************************************#
+
+
+#******************************************** Type Travel ****************************************************************#
+## This code prints the number of observations on the chart bars
+TypeTravel_count=Falcon_Data %>% count(TypeTravel) 
+
+ggplot(TypeTravel_count, aes(x= reorder(TypeTravel,-n), y=n)) + 
+  geom_bar(stat="identity",fill="light green", color="black") + 
+  geom_text(aes(label=n), vjust=-0.25) + 
+  labs(x=" TypeTravel ", y="Count", title=" TypeTravel Distribution")
+
+
+# This code prints the percentage representation of data on the chart bar
+Percentage_TypeTravel = Falcon_Data %>% 
+  count(TypeTravel) %>% 
+          mutate(per = n / sum(n),
+                 per_label = paste0(round(per*100), "%"))
+  
+ggplot(Percentage_TypeTravel, aes(x = reorder(TypeTravel, -per), y = per)) + 
+  geom_bar(stat = "identity", fill = "light green", color = "black") +
+    geom_text(aes(label = per_label), vjust = -0.25) +
+    labs(x = " TypeTravel ", y = "Count", title = " TypeTravel Distribution")+ 
+    scale_y_continuous(labels = scales::percent) +
+    theme_bw()
+#************************************************************************************************************************#
+
+
+#******************************************** Class ****************************************************************#
+## This code prints the number of observations on the chart bars
+Class_count=Falcon_Data %>% count(Class) 
+
+ggplot(Class_count, aes(x= reorder(Class,-n), y=n)) + 
+  geom_bar(stat="identity",fill="light green", color="black") + 
+  geom_text(aes(label=n), vjust=-0.25) + 
+  labs(x="Class", y="Count", title=" Class Distribution")
+
+
+# This code prints the percentage representation of data on the chart bar
+Percentage_Class = Falcon_Data %>% 
+  count(Class) %>% 
+          mutate(per = n / sum(n),
+                 per_label = paste0(round(per*100), "%"))
+    
+ggplot(Percentage_Class, aes(x = reorder(Class, -per), y = per)) + 
+  geom_bar(stat = "identity", fill = "light green", color = "black") +
+    geom_text(aes(label = per_label), vjust = -0.25) +
+    labs(x = " Class ", y = "Count", title = " Class Distribution")+ 
+    scale_y_continuous(labels = scales::percent) +
+    theme_bw()
+#************************************************************************************************************************#
+
+
+#******************************************** Satisfaction ****************************************************************#
+## This code prints the number of observations on the chart bars
+Satisfaction_count=Falcon_Data %>% count(Satisfaction) 
+
+ggplot(Satisfaction_count, aes(x= reorder(Satisfaction,-n), y=n)) + 
+  geom_bar(stat="identity",fill="light green", color="black") + 
+  geom_text(aes(label=n), vjust=-0.25) + 
+  labs(x="Class", y="Count", title="Satisfaction Distribution")
+
+
+# This code prints the percentage representation of data on the chart bar
+Percentage_Satisfaction = Falcon_Data %>% 
+  count(Satisfaction) %>% 
+          mutate(per = n / sum(n),
+                 per_label = paste0(round(per*100), "%"))
+    
+ggplot(Percentage_Satisfaction, aes(x = reorder(Satisfaction, -per), y = per)) + 
+  geom_bar(stat = "identity", fill = "light green", color = "black") +
+    geom_text(aes(label = per_label), vjust = -0.25) +
+    labs(x = " Satisfaction ", y = "Count", title = "Satisfaction Distribution")+ 
+    scale_y_continuous(labels = scales::percent) +
+    theme_bw() 
+#************************************************************************************************************************#
+
+## The above visuals are a better representation of this joint bar plot
+plot_bar(Falcon_Data) 
+
+```
+
+
+
+# EDA 
+## Challenge: This section can be improved if Stacked bar charts with percentages can be plotted; Tableau was used for this section. 
+### W plotted this graphs using Tableau
+```{r}
+
+summary(Falcon_Data)
+
+# Customer profiling
+
+
+# Customer type vs Gender
+table(Gender,CustomerType)
+prop.table(table(Gender,CustomerType))
+plot(Gender,CustomerType,col=c("light green", "light blue","violet")) #Differentiation
+
+# TypeTravel vs Departure_Delay_in_Mins
+plot(TypeTravel,Departure_Delay_in_Mins)
+### Observation:  no differentiation  but for number of outliers
+
+# Gender vs Class
+table(Gender,Class)
+prop.table(table(Gender,Class))
+plot(Gender, Class, col=c("light green", "light blue","violet"))
+### Observation: There is no diffeentiation in the preference of Males or females and the class they like flighing. 
+
+# Gender vs Satisfaction 
+table(Gender,Satisfaction)
+prop.table(table(Satisfaction))
+plot(Gender,Satisfaction,col=c("light green", "light blue")) 
+### Obervation: More females are satisfied than Males. After regression, we will see what parameter contributes to satisfaction.
+
+
+# TypeTravel vs Gender
+table(TypeTravel,Gender)
+prop.table(table(TypeTravel,Gender))
+plot(TypeTravel,Gender, col=c("light green", "light blue","violet")) 
+### Observation: No differentiation 
+
+
+# CustomerType vs Satisfaction
+table(CustomerType,Satisfaction)
+prop.table(table(CustomerType,Satisfaction))
+plot(CustomerType,Satisfaction,col=c("light green", "light blue"))
+### Observation: 45% of loyal customers are satisfied while 28% disatisfied. 39% of disloyal customers are satisfied while 12.5% are dissatisfied.
+### Observation:  For other customers, overall, they are satisfied but the satisfaction - dissatisfaction margin is too narrow. 
+
+
+# CustomerType vs Class
+table(CustomerType,Class)
+prop.table(table(CustomerType,Class))
+plot(CustomerType,Class,col=c("light green", "light blue","violet"))
+### Observation:  36.8% of loyal customers fly business, 30.8% of them fly Eco, and 5.9% of them fly Eco Plus.
+### Observation: 6.4% of disloyal customers fly business, the majority of disloyal customers fly Eco class (9.7%), and 0.6% of them fly Eco Plus.
+
+
+# TypeTravel vs Satisfaction
+table(TypeTravel,Satisfaction)
+prop.table(table(TypeTravel,Satisfaction))
+plot(TypeTravel,Satisfaction,col=c("light green", "light blue"))
+### Observation:  The majority of business class travelers are satisied. 
+### 36% of business class travelers are satisfied while 25.8% of them are dissatisfied.
+### Observation:  The majority of personal type travelers are not satisfied (15%) while 13% are satisfied.
+
+
+# TypeTravel vs Class
+table(Class,TypeTravel)
+prop.table(table(Class,TypeTravel))
+plot(Class,TypeTravel,col=c("light green", "light blue","violet"))
+### Observation: Most people who travel for business use Business class. Most people who travel for private reasons use Eco class.
+### 41% of those who travel for business purposes use business class, 4.8% of people who travel for other reasons use business class and 
+## 1.9% of those who travel for personal reasons use business class. 
+### Observation: 17.5% of people who travel for  for business purposes use Eco class and 22.8% of those who travel for private reasons use Eco.
+### Observation: 6624 clients travel by Eco Plus class (7.3% of customers).
+
+
+# Class vs Satisfaction 
+table(Satisfaction, Class)
+prop.table(table(Satisfaction, Class))
+plot(Satisfaction, Class,col=c("light green", "light blue","violet"))
+### Observation:  The majority of business class travelers are satisfied (34%), while 13.9% are dissatisfied.
+### Observation: 27.2% of Eco class passengers are not satified while 17.6% are.
+### Observation: The majority of Eco Plus (4.1%) passengers are dissatisfied while 3.1% of passengers are. 
+
+
+# Class vs Flight_Distance
+plot(Class,Flight_Distance,col=c("light green","light blue","violet"))
+### Observation: Business class passengers travel on average higher miles than other passengers in the Eco and Eco Plus class.
+```
+
+
+#EDA and segmentation of our data by the flight data variables.
+# Don't worry about the segmentation of Age for the other algorithms.
+
+```{r}
+
+library(DataExplorer)
+plot_str(Falcon_Data)
+plot_intro(Falcon_Data) # Our data contains missing observations. 
+plot_missing(Falcon_Data) #Data contains NA's 
+profile_missing(Falcon_Data) # Shows us the which variables contain missing values
+plot_histogram(Falcon_Data)
+plot_correlation(Falcon_Data,type='continuous') # Our correlation doesn't show any relationship between variables which is actionable.
+# We change the dependent variable, Satisfaction, to a numeric and then re-run the correlation. It yieled the same results. 
+
+
+plot_bar(Falcon_Data) # The majority of clients are in the age group "29-49"
+
+
+plot_boxplot(Falcon_Data,by="Satisfaction")
+plot_boxplot(Falcon_Data,by="Age")
+plot_boxplot(Falcon_Data,by="Gender")
+plot_boxplot(Falcon_Data,by="CustomerType")
+plot_boxplot(Falcon_Data,by="Age.Bins")
+plot_boxplot(Falcon_Data,by="Class")
+plot_boxplot(Falcon_Data,by="Flight_Distance")
+plot_boxplot(Falcon_Data,by="Departure_Delay_in_Mins")
+plot_boxplot(Falcon_Data,by="Arrival_Delay_in_Mins")
+plot_boxplot(Falcon_Data,by="Departure_or_Arrival_Time_Convenience")
+plot(Departure_or_Arrival_Time_Convenience,Age.Bins)
+```
+
+
+
+#Exploring the survey data
+```{r}
+plot_boxplot(Falcon_Data,by="Seat_comfort")
+plot_boxplot(Falcon_Data,by="Departure_or_Arrival_Time_Convenience")
+plot_boxplot(Falcon_Data,by="Food_drink")
+plot_boxplot(Falcon_Data,by="Gate_location")
+plot_boxplot(Falcon_Data,by="Inflight_Wifi_Service")#  The majority of low ratings are given by customers in the age group of 20 to 30 years old. 
+
+plot_boxplot(Falcon_Data,by="Inflight_entertainment") # The majority of low ratings are given by customers in the age group of 20 to 30 years old. 
+plot_boxplot(Falcon_Data,by="Online_support")
+plot_boxplot(Falcon_Data,by="Ease_of_Onlinebooking")
+plot_boxplot(Falcon_Data,by="Onboard_service")
+plot_boxplot(Falcon_Data,by="Leg_room_service")
+plot_boxplot(Falcon_Data,by="Baggage_handling")
+plot_boxplot(Falcon_Data,by="Checkin_service")
+plot_boxplot(Falcon_Data,by="Cleanliness")
+plot_boxplot(Falcon_Data,by="Online_boarding")
+```
+# Observation: The majority of low ratings are given by customers in the age group of 20 to 30 years old. 
+
+
+## The DataExplorer library function already returned this graphic as a lump and we have commennted on it already
+```{r}
+str(Falcon_Data)
+hist(Age)
+hist(Flight_Distance)
+hist(Departure_Delay_in_Mins)
+hist(Arrival_Delay_in_Mins)
+hist(Seat_comfort)
+hist(Departure_or_Arrival_Time_Convenience)
+hist(Food_drink)
+hist(Gate_location)
+hist(Inflight_Wifi_Service)
+hist(Inflight_entertainment)
+hist(Online_support)
+hist(Ease_of_Onlinebooking)
+hist(Onboard_service)
+hist(Leg_room_service)
+hist(Baggage_handling)
+hist(Checkin_service)
+hist(Cleanliness)
+hist(Online_boarding)
+
+```
+# Observation:  These pattern recognition diagrams above help us to understand the iindividual parameters of both the flight and survey data. This 
+# gives us an idea of where the company stands. 
+
+
+
+### Chisuared test to investigate the relationship between categorical data
+# Relationship between Categorical data
+# Ho: The variables are independent.
+# Ha: There is an association between the variables.
+# Given alpha = 0.05 as our level of significance, and given the p-values which are all less than 0.05, we 
+# overwhelmingly fall to accept the null hypothesis that the variables are independent and thus, conclude that, there is 
+# an association or a relationship with the variables tested.
+## The survey data parameters all have an association or affect the value customers derive from Falcon airlines company.
+```{r}
+library(DataExplorer)
+
+chisq.test(Seat_comfort,Leg_room_service)
+chisq.test(CustomerType,TypeTravel)
+chisq.test(Satisfaction,Seat_comfort)
+chisq.test(Satisfaction,TypeTravel)
+chisq.test(Satisfaction,Class)
+chisq.test(Satisfaction,Departure_or_Arrival_Time_Convenience)
+chisq.test(Satisfaction,Food_drink)
+chisq.test(Satisfaction,Inflight_Wifi_Service)
+
+
+# Chi-squared approximation may be incorrect but however, all variables proved to have a relationship.
+chisq.test(Satisfaction,Gate_location)
+chisq.test(Cleanliness,Food_drink)
+chisq.test(Satisfaction,Online_support)
+chisq.test(Satisfaction,Online_boarding)
+chisq.test(Satisfaction,Onboard_service)
+chisq.test(Satisfaction,Checkin_service)
+chisq.test(Satisfaction,Cleanliness)
+chisq.test(Inflight_Wifi_Service,Inflight_entertainment)
+chisq.test(Gate_location,Departure_or_Arrival_Time_Convenience)
+chisq.test(Onboard_service,Checkin_service)
+chisq.test(Online_support,Online_boarding)
+chisq.test(Online_boarding,Ease_of_Onlinebooking)
+```
+# We have this error notification because some buckers might have small amounts of data but this is not a problem.
+
+
+# Correlation  and Histogram plots
+```{r}
+cor.test(Departure_Delay_in_Mins,Arrival_Delay_in_Mins)
+scatter.smooth(Departure_Delay_in_Mins,Arrival_Delay_in_Mins) # This plot in contained in the one just below. 
+
+library(car) 
+scatterplot(Departure_Delay_in_Mins,Arrival_Delay_in_Mins)
+
+
+library(psych)
+pairs.panels(Falcon_Data[4:9],gap=0,bg=c("green","blue","yellow")[Falcon_Data$Satisfaction],pch=21)
+Falcon_Data$Satisfaction=as.numeric(Falcon_Data$Satisfaction)
+
+
+# Transform "Satisfaction back to factor
+Falcon_Data$Satisfaction=as.factor(Falcon_Data$Satisfaction)
+
+```
+# Observation: 
+# There exsists  a high correlation between Departure_Delay_in_Mins and Arrival_Delay_in_Mins. However, the majority of flights take off and 
+# arrive on time.  We need to delete one of the highly correlated variables.
+
+
+
+# Outlier  detection and treatment: This code identifies the inter-quartile range for the variables with outliers and caps it by the
+# inter-quartile range values. 
+```{r}
+boxplot(Departure_Delay_in_Mins) # contains extreme values
+boxplot(Flight_Distance) # contains extreme values
+boxplot(Age)
+boxplot(ID)
+boxplot(Arrival_Delay_in_Mins) # contains estreme values 
+boxplot(Onboard_service) # contains 2 outliers 
+
+
+# Observation: Five variables contains outliers
+
+#----------------------------------------------------------------------------------------------------
+#Identifying the outlier boundaries
+boxplot(Departure_Delay_in_Mins)
+
+IQRage=IQR(Falcon_Data$Departure_Delay_in_Mins)
+LLage=quantile(Falcon_Data$Departure_Delay_in_Mins,0.25) - 1.5*IQRage
+ULage=quantile(Falcon_Data$Departure_Delay_in_Mins,0.75) + 1.5*IQRage
+Departure_Out=subset(Falcon_Data,Departure_Delay_in_Mins < LLage | Departure_Delay_in_Mins > ULage)
+dim(Departure_Out)
+# 12620 outliers detected
+# The upper value is 30. we should cap the value by 30
+Departure_WOUT=subset(Falcon_Data, Departure_Delay_in_Mins >= LLage & Departure_Delay_in_Mins <= ULage)
+max(Departure_WOUT$Departure_Delay_in_Mins) # answer returned "30", so we use it below.
+dim(Departure_WOUT)
+
+summary(Departure_Delay_in_Mins)
+Falcon_Data$Departure_Delay_in_Mins[Falcon_Data$Departure_Delay_in_Mins>30]=30
+
+#------------------------------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------------------------------
+boxplot(Flight_Distance)
+IQRage=IQR(Falcon_Data$Flight_Distance,na.rm=TRUE)
+LLage=quantile(Falcon_Data$Flight_Distance,0.25) - 1.5*IQRage
+ULage=quantile(Falcon_Data$Flight_Distance,0.75) + 1.5*IQRage
+Flight_Distance_Out=subset(Falcon_Data,Flight_Distance < LLage | Flight_Distance > ULage)
+dim(Flight_Distance_Out)
+
+# Capping of outliers
+Flight_Distance_WOUT=subset(Falcon_Data,Flight_Distance >= LLage & Flight_Distance <= ULage)
+dim(Flight_Distance_WOUT)
+max(Flight_Distance_WOUT$Flight_Distance) 
+
+summary(Flight_Distance)
+Falcon_Data$Flight_Distance[Falcon_Data$Flight_Distance>4315]=4315
+
+# 1800 outliers detected
+#-------------------------------------------------------------------------------------------------------
+
+#-------------------------------------------------------------------------------------------------------
+boxplot(Arrival_Delay_in_Mins)
+
+IQRage=IQR(Falcon_Data$Arrival_Delay_in_Mins,na.rm=TRUE)
+LLage=quantile(Falcon_Data$Arrival_Delay_in_Mins,0.25,na.rm=TRUE) - 1.5*IQRage
+ULage=quantile(Falcon_Data$Arrival_Delay_in_Mins,0.75,na.rm=TRUE) + 1.5*IQRage
+Arrival_Out=subset(Falcon_Data,Arrival_Delay_in_Mins < LLage | Arrival_Delay_in_Mins > ULage)
+dim(Arrival_Delay_in_Mins)
+# 1800 outliers detected
+
+# Capping of outliers
+Arrival_WOUT=subset(Falcon_Data,Arrival_Delay_in_Mins >= LLage & Arrival_Delay_in_Mins <= ULage)
+dim(Arrival_WOUT)
+max(Arrival_WOUT$Arrival_Delay_in_Mins)
+
+
+summary(Arrival_Delay_in_Mins)
+Falcon_Data$Arrival_Delay_in_Mins[Falcon_Data$Arrival_Delay_in_Mins>32]=32
+#-------------------------------------------------------------------------------------------------------
+```
+
+# Outliers were capped correctly. We verified this by re-running the plot_histogram(Falcon_Data) code and the maximum values showed as
+# capped in the above codes.
+
+
+
+
+
+#################### Treatment for missing values using "mice" library.
+# Reference https://www.youtube.com/watch?v=An7nPLJ0fsg
+
+# Procedures 
+# 1)  This code finds the percentage of missing values in our data and the multiplication by 100 is to put the number 
+# of missing data in percentage representation. 
+
+# 2) Next, we apply the above formula  in (1) to the columns of our dataset ( where "2" stands for columns in that formula).
+## Observations: 
+# Arrival_Delay_in_Mins has 0.31% of missing data
+# Food_drink contains 8.99% of missing data
+# Onboard_service contains 7.89% of missing data
+# Departure_or_Arrival_Time_Convenience contains 9.06% of missing data
+ 
+# 3) Now, lets check the missing data pattern  (missing data pattern = md.pattern) of our dataset. 
+
+
+# 4) Imputation for missing data. 
+# Note: "m = number of imputations. The default is 5 but you can still use m=3
+# Note: Always set seed when running mice code.
+# The method for dealing with imputing numeric values is pmm=predictive mean matching.  The method used for imputing
+# categorical variables is "polyreg=multinomial logistic regression" 
+# "imp" stands for imputation. 
+
+# 5) 
+#This means that, from the m=3 we chose, we chose to replace our NA's with the 3rd estimated values 
+# R suggested to us.
+
+```{r}
+# checking number of NA's 
+library(mice)
+
+
+P=function(x){sum(is.na(x))/length(x)*100}
+apply(Falcon_Data,2,P)
+md.pattern(Falcon_Data) 
+impute=mice(Falcon_Data[,-1],m=5,seed=1000) 
+complete(impute,3) 
+
+# This is a smart step
+Mice.Complete=complete(impute,3)
+
+# Finally, we store the imputed Data as our nnew dataset with which we will continue doing analysis
+Falcon_Data=Mice.Complete 
+summary(Falcon_Data)
+anyNA(Falcon_Data) #verification of imputation process by checking for NA's.
+
+```
+#Observation: All the NA's have imputed using the mice method. 
+
+
+###################### Deletion of multi-collinear variables. The ID column was already deleted above. 
+```{r}
+Falcon_Data=Falcon_Data[,-8,] 
+view(Falcon_Data)
+write.csv(Falcon_Data,"Cleaned_FalconData.csv")
+```
+
+### Linear regression and multi-collinearity cleaning.
+# The important predictors of Satisfaction can be listed in order of importance by looking at the "t-values". Decision trees can also give us this.
+# The R-squared value is 48%, telling us that about 48% of Satisfaction is explained by the our data variations.
+# Inflight_Entertainment is the most important driver of sales. 
+# To improve satisfaction, focus on lower age groups, as indicated by the negative t-value for Age. 
+```{r}
+Falcon_Data$Satisfaction=as.numeric(Falcon_Data$Satisfaction)
+
+Falcon_Reg=lm(Satisfaction~.,data=Falcon_Data)
+summary(Falcon_Reg) # see observation
+Falcon_Reg
+
+library(car)
+vif(Falcon_Reg)
+```
+# Since linear regression accepts on numeric variable type, we start by converting the dependent variable to numeric.
+
+
+#Segmentation of data Procedure 1
+```{r}
+library(cluster)
+library(dplyr)
+library(ggplot2)
+library(Rtsne)
+
+# Run Gower distance on entire data. This returned an error
+gower_dist = daisy(Falcon_Data,metric=c("gower"))
+
+# The above code returned an error message because our data is too large. We split it into 10
+# equal groups and ran the code with subsets of the data.
+Reduced_FalconData = Falcon_Data[sample(1:nrow(Falcon_Data),nrow(Falcon_Data)/10),] 
+
+gower_dist = daisy(Reduced_FalconData, metric=c("gower"))
+
+# new code 
+gower_mat = as.matrix(gower_dist)
+
+
+# We now search for the best number of clusters in which to cluster our data
+sil_width <- c(NA)
+for(i in 2:10){
+pam_fit<-pam(gower_dist, diss=TRUE, k = i)
+  sil_width[i] <- pam_fit$silinfo$avg.width
+}
+
+# Plot the Silhouette Width. The highest width will be our chosen number of clusters ( Don't use elbow method here, it doesn't apply)
+plot(1:10, sil_width,
+     xlab = "Number of clusters",
+     ylab = "Silhouette Width")
+lines(1:10, sil_width)
+
+#### INTERPRETATION: n = ? has the highest Silhouette width. So, lets pick k = ? as our number of clusters. 
+
+
+############ SUMMARY OF EACH CLUSTER. We store the results of pam in our dataset we used to run the "gower_dist"
+
+k <- 2
+pam_fit <- pam(gower_dist, diss = TRUE, k)
+pam_results <- Reduced_FalconData %>%
+  mutate(cluster = pam_fit$clustering) %>%
+  group_by(cluster) %>%
+  do(the_summary = summary(.))
+pam_results$the_summary
+
+# Visualize the clusters in a lower dimensional space 
+tsne_obj <- Rtsne(gower_dist, is_distance = TRUE)
+tsne_data <- tsne_obj$Y %>%
+  data.frame() %>%
+  setNames(c("X", "Y")) %>%
+  mutate(cluster = factor(pam_fit$clustering))
+ggplot(aes(x = X, y = Y), data = tsne_data) +
+  geom_point(aes(color = cluster))
+
+
+```
+
+
+#Segmentation of data Procedure 2 (this is what we will consider for this project)
+```{r}
+library(cluster)
+library(dplyr)
+library(ggplot2)
+library(Rtsne)
+
+# We begin by splitting our data in the 90 - 10% 
+library(caTools)
+set.seed(1000)
+
+split=sample.split(Falcon_Data$Satisfaction,SplitRatio=0.90)
+
+Falcon_DontRunClustering=subset(Falcon_Data, split == TRUE)
+Falcon_Clustering=subset(Falcon_Data, split == FALSE)
+
+write.csv(Falcon_Clustering,"Falcon_Clustering.csv")
+
+
+#we can check the ratios of the minority class to majority class
+table(Falcon_Clustering$Satisfaction)
+print(prop.table(table(Falcon_Clustering$Satisfaction)))
+### Observation: The split dataset has the same proportion as he original dataset. 
+
+
+# Run Gower distance on for 10% of data using the Falcon_Clustering data
+gower_dist = daisy(Falcon_Clustering,metric=c("gower"))
+
+
+# Re-name the gower
+gower_mat = as.matrix(gower_dist)
+
+
+# We now search for the best number of clusters in which to cluster our data
+sil_width <- c(NA)
+for(i in 2:10){
+pam_fit<-pam(gower_dist, diss=TRUE, k = i)
+  sil_width[i] <- pam_fit$silinfo$avg.width
+}
+
+# Plot the Silhouette Width. The highest width will be our choosen number of clusters ( Don't use elbow method here, it doesn't apply)
+plot(1:10, sil_width,
+     xlab = "Number of clusters",
+     ylab = "Silhouette Width")
+lines(1:10, sil_width)
+
+#### INTERPRETATION: n = ? has the highest Silhouette width. So, lets pick k = ? as our number of clusters. 
+
+
+############ SUMMARY OF EACH CLUSTER. We store the results of pam in our dataset we used to run the "gower_dist"
+
+k <- 8
+pam_fit <- pam(gower_dist, diss = TRUE, k)
+pam_results <- Falcon_Clustering %>%
+  mutate(cluster = pam_fit$clustering) %>%
+  group_by(cluster) %>%
+  do(the_summary = summary(.))
+pam_results$the_summary
+
+
+# Visualize the clusters in a lower dimensional space 
+tsne_obj <- Rtsne(gower_dist, is_distance = TRUE)
+tsne_data <- tsne_obj$Y %>%
+  data.frame() %>%
+  setNames(c("X", "Y")) %>%
+  mutate(cluster = factor(pam_fit$clustering))
+ggplot(aes(x = X, y = Y), data = tsne_data) +
+  geom_point(aes(color = cluster))
+
+
+#### Make a column for my cluster in the clustering data
+Falcon_Clustering$Cluster1=pam_results$cluster
+
+
+# Create different different data frames from my clusters
+df_cluster1=Falcon_Clustering[Falcon_Clustering$Cluster1==1,]
+df_cluster2=Falcon_Clustering[Falcon_Clustering$Cluster1==2,]
+
+
+write.csv(df_cluster1,"Falcon_Cluster1.csv")
+write.csv(df_cluster2,"Falcon_Cluster2.csv")
+
+```
+######### Observation: 
+### The partition of satisfaction variation between Satisfaction and dissatisfaction is preserved. Thus, our random
+### sample of 9092 observations is a fair one and we can rely on it and by the central limit theorem, is 
+### representative of the 90917 observationsn. However, these stored clusters do not correpsond to that printed
+### by  our algorithm.
+
+
+
+
+
+
+
+# Build CART model for segments to see drivers of satisfaction in segments. [NO VALUE ADDED SINCE WE DIDN't HAVE THE RIGHT SEGMENTS]
+```{r}
+library(rpart)
+library(rpart.plot)
+set.seed(1000)
+
+tree.Segment=rpart(formula=Satisfaction ~., data=df_cluster1, method = "class", control = rpart.control(minsplit = 4000, minbucket = 1333, cp = 0.0001562))
+
+printcp(tree.Segment)
+plotcp(tree.Segment)
+rpart.plot(tree.Segment)
+```
+
+```{r}
+#Get the best cp= tree$cptable[which.min(tree$cptable[,"xerror"]), "CP"]
+
+tree.Segment$cptable
+tree.Segment$cptable[,"xerror"]
+min(tree.Segment$cptable[,"xerror"])
+
+bestcp.Segment= tree.Segment$cptable[which.min(tree.Segment$cptable[, "xerror"]), "CP"]
+bestcp.Segment
+
+print(tree.Segment$cptable)
+plot(tree.Segment$cptable)
+
+## Prune the tree based on bestcp ~ ptree=prune(tree,cp=bestcp)
+ptree.Segment = prune(tree.Segment, cp=bestcp.Segment)
+
+print(ptree.Segment)
+rpart.plot(ptree.Segment, cex = 0.8)
+
+
+
+```
+
+## Variable of importance for segment
+```{r}
+library(caret)
+
+summary(ptree.Segment)
+#ptree$variable.importance
+
+df_cart.Segment = data.frame(ptree.Segment$variable.importance)
+df_cart.Segment
+write.csv(df_cart.Segment,"varimpcart.Segment.csv")
+```
+
+Analysis for segment 2 
+# Build CART model for segments to see drivers of satisfaction in segments. [NO VALUE ADDED SINCE WE DIDN't HAVE THE RIGHT SEGMENTS]
+# Build CART model for segments to see drivers of satisfaction in segments. [NO VALUE ADDED SINCE WE DIDN't HAVE THE RIGHT SEGMENTS]
+```{r}
+library(rpart)
+library(rpart.plot)
+set.seed(1000)
+
+tree.Segment00=rpart(formula=Satisfaction ~., data=df_cluster2, method = "class", control = rpart.control(minsplit = 4000, minbucket = 1333, cp = 0.0001562))
+
+printcp(tree.Segment00)
+plotcp(tree.Segment00)
+rpart.plot(tree.Segment00)
+```
